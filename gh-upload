@@ -1,35 +1,76 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
+IFS=$'\n\t'
 
-echo "Hello gh-upload!"
+CLI=$(basename "${BASH_SOURCE[0]}")
+VERSION=v0.0.0
 
-# Snippets to help get started:
+# Set default values for options
+owner=$(gh api /user | jq -r '.login') # Get current user
+repo=static
+dry_run=false
 
-# Determine if an executable is in the PATH
-# if ! type -p ruby >/dev/null; then
-#   echo "Ruby not found on the system" >&2
-#   exit 1
-# fi
+usage() {
+    cat <<-EOF
+Usage: $CLI <repo> <...paths> or $CLI <url>
 
-# Pass arguments through to another command
-# gh issue list "$@" -R cli/cli
+> Upload folders or files to GitHub \`static\` repo
 
-# Using the gh api command to retrieve and format information
-# QUERY='
-#   query($endCursor: String) {
-#     viewer {
-#       repositories(first: 100, after: $endCursor) {
-#         nodes {
-#           nameWithOwner
-#           stargazerCount
-#         }
-#       }
-#     }
-#   }
-# '
-# TEMPLATE='
-#   {{- range $repo := .data.viewer.repositories.nodes -}}
-#     {{- printf "name: %s - stargazers: %v\n" $repo.nameWithOwner $repo.stargazerCount -}}
-#   {{- end -}}
-# '
-# exec gh api graphql -f query="${QUERY}" --paginate --template="${TEMPLATE}"
+Arguments:
+    <...paths>           folders or files path
+
+Options:
+    -h                   output usage
+    -v                   output version
+    -d                   dry-run mode, only output the command
+
+Examples:
+    gh upload README.md
+    gh upload LICENSE
+EOF
+    exit
+}
+
+version() {
+    echo "$CLI $VERSION"
+    exit
+}
+
+# TODO: Support uploading multiple files at once
+# TODO: Error occurs when the file already exists
+upload() {
+    local path=$1
+    local date=$(date +%Y-%m-%d)
+    local message="Upload files to \`$date\`"
+    local extesion="${path##*.}"
+    if [ "$dry_run" = true ]; then
+        echo "DRY RUN: gh api -X PUT \"/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion\" -F \"message=$message\" -F \"content=$(base64 $path)\""
+    else
+        local result=$(gh api -X PUT "/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion" -F "message=$message" -F "content=$(base64 $path)")
+        echo $result | jq -r '.content.download_url'
+    fi
+}
+
+# Parse options
+while getopts ":hvd" opt; do
+    case ${opt} in
+    h)
+        usage
+        ;;
+    v)
+        version
+        ;;
+    d)
+        dry_run=true
+        ;;
+    \?)
+        usage
+        ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+# Iterate over files
+for file in "$@"; do
+    upload $file
+done
