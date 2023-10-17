@@ -10,6 +10,11 @@ owner=$(gh api /user | jq -r '.login') # Get current user
 repo=static
 dry_run=false
 
+# Env
+if [ -n "$GH_UPLOAD_REPO" ]; then
+    repo="$GH_UPLOAD_REPO"
+fi
+
 usage() {
     cat <<-EOF
 Usage: $CLI <repo> <...paths> or $CLI <url>
@@ -23,6 +28,7 @@ Options:
     -h                   output usage
     -v                   output version
     -d                   dry-run mode, only output the command
+    -m <message>         commit message, default is \`Updated at: <datetime>\`
 
 Examples:
     gh upload README.md
@@ -39,14 +45,31 @@ version() {
 # TODO: Support uploading multiple files at once
 # TODO: Error occurs when the file already exists
 upload() {
+    # refs: https://dev.to/bro3886/create-a-folder-and-push-multiple-files-under-a-single-commit-through-github-api-23kc
+    # gh api /repos/yuler/static | jq -r '.default_branch'
+    # gh api /repos/yuler/static/branches/main | jq -r '.commit.sha'
+    # gh api -X POST /repos/yuler/static/git/commits --input commit.json
+
+    # commit_json=$(cat <<EOF
+    # {
+    # "message": "Commit changes",
+    # "tree": {
+    #     "README.md": {"content":"$readme_content"},
+    #     "index.js": {"content":"$index_content"}
+    # },
+    # "parents": ["PARENT_SHA"]
+    # }
+    # EOF
+    # )
+
     local path=$1
-    local date=$(date +%Y-%m-%d)
-    local message="Upload files to \`$date\`"
+    local datetime=$(date +%Y-%m-%dT%H:%M:%S%z)
+    local message="Updated at: \`$datetime\`"
     local extesion="${path##*.}"
-    if [ "$dry_run" = true ]; then
-        echo "DRY RUN: gh api -X PUT \"/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion\" -F \"message=$message\" -F \"content=$(base64 $path)\""
+    if [[ $dry_run ]]; then
+        echo "DRY RUN: gh api -X POST \"/repos/$owner/$repo/git/commits\" -F \"message=$message\" -F \"tree.$path.content=$(base64 $path)\""
     else
-        local result=$(gh api -X PUT "/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion" -F "message=$message" -F "content=$(base64 $path)")
+        local result=$(gh api -X POST "/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion" -F "message=$message" -F "content=$(base64 $path)")
         echo $result | jq -r '.content.download_url'
     fi
 }
