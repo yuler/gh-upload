@@ -112,8 +112,16 @@ commit_sha=$(
     gh api -X POST /repos/$owner/$repo/git/commits -f "tree=${tree_sha}" -f "parents[]=${parent_sha}" \
         -f "message=$message" | jq -r '.sha'
 )
+
 # Update ref
-_=$(gh api -X PATCH /repos/$owner/$repo/git/refs/heads/$branch -f "sha=$commit_sha")
+sha=$(gh api -X PATCH /repos/$owner/$repo/git/refs/heads/$branch -f "sha=$commit_sha" | jq -r '.object.sha')
+
+# Echo raws URLs
+for file in "$files"; do
+    echo File: $file
+    echo URL: "https://raw.githubusercontent.com/$owner/$repo/$sha/$file"
+    echo ""
+done
 
 # TODO:
 echo "Update Success"
