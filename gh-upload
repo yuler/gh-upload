@@ -6,9 +6,11 @@ CLI=$(basename "${BASH_SOURCE[0]}")
 VERSION=v0.0.0
 
 # Set default values for options
-owner=$(gh api /user | jq -r '.login') # Get current user
 repo=static
 dry_run=false
+message="Updated at: \`$(date +%Y-%m-%d\ %H:%M:%S)\`"
+owner=$(gh config get -h github.com user)
+branch=$(gh api repos/$owner/$repo --jq .default_branch)
 
 usage() {
     cat <<-EOF
@@ -23,6 +25,8 @@ Options:
     -h                   output usage
     -v                   output version
     -d                   dry-run mode, only output the command
+    -m                   commit message. Default is \`Updated at: <datetime>\`
+    -r                   repository name, <owner/repo>. Default is \`<username>/static\`
 
 Examples:
     gh upload README.md
@@ -36,23 +40,8 @@ version() {
     exit
 }
 
-# TODO: Support uploading multiple files at once
-# TODO: Error occurs when the file already exists
-upload() {
-    local path=$1
-    local date=$(date +%Y-%m-%d)
-    local message="Upload files to \`$date\`"
-    local extesion="${path##*.}"
-    if [ "$dry_run" = true ]; then
-        echo "DRY RUN: gh api -X PUT \"/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion\" -F \"message=$message\" -F \"content=$(base64 $path)\""
-    else
-        local result=$(gh api -X PUT "/repos/$owner/$repo/contents/$date/$(md5 -q $path).$extesion" -F "message=$message" -F "content=$(base64 $path)")
-        echo $result | jq -r '.content.download_url'
-    fi
-}
-
 # Parse options
-while getopts ":hvd" opt; do
+while getopts ":h:v:d:m:r" opt; do
     case ${opt} in
     h)
         usage
@@ -63,6 +52,19 @@ while getopts ":hvd" opt; do
     d)
         dry_run=true
         ;;
+    m)
+        message=$OPTARG
+        ;;
+    r)
+        tmp=$OPTARG
+        # If containts '/'
+        if [[ tmp =~ / ]]; then
+            owner=${tmp%/*}
+            repo=${tmp#*/}
+        else
+            repo=$tmp
+        fi
+        ;;
     \?)
         usage
         ;;
@@ -70,7 +72,38 @@ while getopts ":hvd" opt; do
 done
 shift $((OPTIND - 1))
 
-# Iterate over files
+# Main
+if [[ $# -eq 0 ]]; then
+    usage
+fi
+# Create blobs
+files=()
+blobs=()
 for file in "$@"; do
-    upload $file
+    sha=$(gh api /repos/$owner/$repo/git/blobs -f "encoding=base64" -f "content=$(base64 $file)" | jq -r '.sha')
+    blobs+=($sha)
+    files+=($file)
 done
+
+# Parent sha
+parent_sha=$(gh api /repos/$owner/$repo/branches/$branch | jq -r '.commit.sha')
+# Create tree
+command="gh api -X POST /repos/$owner/$repo/git/trees -f \"base_tree=$parent_sha\""
+for ((i = 0; i < $#; i++)); do
+    file=${files[$i]}
+    sha=${blobs[$i]}
+    command+=" -f \"tree[][path]=$file\" -f \"tree[][mode]=100644\" -f \"tree[][type]=blob\" -f \"tree[][sha]=$sha\""
+done
+command+=" | jq -r '.sha'"
+tree_sha=$(eval $command)
+
+# Post commit
+commit_sha=$(
+    gh api -X POST /repos/$owner/$repo/git/commits -f "tree=${tree_sha}" -f "parents[]=${parent_sha}" \
+        -f "message=$message" | jq -r '.sha'
+)
+# Update ref
+_=$(gh api -X PATCH /repos/$owner/$repo/git/refs/heads/$branch -f "sha=$commit_sha")
+
+# TODO:
+echo "Update Success"
