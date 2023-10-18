@@ -41,7 +41,7 @@ version() {
 }
 
 # Parse options
-while getopts ":h:v:d:m:r" opt; do
+while getopts ":hvdmr" opt; do
     case ${opt} in
     h)
         usage
