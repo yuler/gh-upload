@@ -1,7 +1,8 @@
 owner=yuler
 repo=static
 file=fixtures/avatar.png
-message="Add avatar.png"
+datetime=$(date +%Y-%m-%d\ %H:%M:%S)
+message="Updated at: \`$datetime\`"
 
 # Create blobs
 blob_sha=$(gh api /repos/$owner/$repo/git/blobs -F "encoding=base64" -F "content=$(base64 $file)" | jq -r '.sha')
@@ -13,7 +14,7 @@ echo $parent_sha
 
 # Create tree
 tree_sha=$(gh api -X POST /repos/yuler/static/git/trees \
-  -F "tree[][path]=avatar.png" -f "tree[][mode]=100644" -F "tree[][type]=blob" -F "tree[][sha]=$blob_sha" \
+  -F "tree[][path]=$file" -f "tree[][mode]=100644" -F "tree[][type]=blob" -F "tree[][sha]=$blob_sha" \
   -F "base_tree=${parent_sha}" | jq -r '.sha')
 echo $tree_sha
 
