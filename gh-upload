@@ -14,11 +14,12 @@ branch=$(gh api repos/$owner/$repo --jq .default_branch)
 
 usage() {
     cat <<-EOF
-Usage: $CLI <repo> <...paths> or $CLI <url>
+Usage: $CLI [repo] <...paths> or $CLI <url>
 
-> Upload folders or files to GitHub \`static\` repo
+> Upload folders or files to GitHub repo
 
 Arguments:
+    [repo]               GitHub repo name, default is \`static\`. Only can missing in single file upload
     <...paths>           folders or files path
 
 Options:
@@ -26,11 +27,16 @@ Options:
     -v                   output version
     -d                   dry-run mode, only output the command
     -m                   commit message. Default is \`Updated at: <datetime>\`
-    -r                   repository name, <owner/repo>. Default is \`<username>/static\`
 
 Examples:
+    # Upload README.md file to 'static' repo
     gh upload README.md
-    gh upload LICENSE
+
+    # Upload multiple files to <repo_name>
+    gh upload repo_name fixtures/avatar.png README.md
+
+    # Upload multiple files to <yuler/tmp>
+    gh upload yuler/tmp fixtures/avatar.png REAMDE.md
 EOF
     exit
 }
@@ -41,7 +47,7 @@ version() {
 }
 
 # Parse options
-while getopts ":hvdmr" opt; do
+while getopts ":hvdm" opt; do
     case ${opt} in
     h)
         usage
@@ -55,16 +61,6 @@ while getopts ":hvdmr" opt; do
     m)
         message=$OPTARG
         ;;
-    r)
-        tmp=$OPTARG
-        # If containts '/'
-        if [[ tmp =~ / ]]; then
-            owner=${tmp%/*}
-            repo=${tmp#*/}
-        else
-            repo=$tmp
-        fi
-        ;;
     \?)
         usage
         ;;
@@ -72,10 +68,24 @@ while getopts ":hvdmr" opt; do
 done
 shift $((OPTIND - 1))
 
+# Note: $# > 1
+if [[ $# -gt 1 ]]; then
+    tmp=$1
+    # containts /
+    if [[ $tmp =~ '/' ]]; then
+        owner=${tmp%/*}
+        repo=${tmp#*/}
+    else
+        repo=$tmp
+    fi
+    shift
+fi
+
 # Main
 if [[ $# -eq 0 ]]; then
     usage
 fi
+
 # Create blobs
 files=()
 blobs=()
