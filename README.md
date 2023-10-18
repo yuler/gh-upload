@@ -4,7 +4,11 @@
 
 ## How it works
 
-<!-- TODO: -->
+- Create blob for every files
+- Get latest sha from default branch
+- Create tree w/ blobs and latest sha
+- Post commit w/ tree and latest sha
+- Update default branch ref
 
 ## Usage
 
