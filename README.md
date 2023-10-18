@@ -4,11 +4,7 @@
 
 ## How it works
 
-## Envs
-
-```bash
-GH_UPLOAD_REPO=<username>/static # default is static
-```
+<!-- TODO: -->
 
 ## Usage
 
@@ -20,4 +16,3 @@ gh extension install yuler/gh-upload
 gh alias set up "upload"
 gh up -h
 ```
-
