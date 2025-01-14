@@ -120,8 +120,7 @@ sha=$(gh api -X PATCH /repos/$owner/$repo/git/refs/heads/$branch -f "sha=$commit
 for file in "$files"; do
     echo File: $file
     echo URL: "https://raw.githubusercontent.com/$owner/$repo/$sha/$file"
-    echo ""
 done
 
 # TODO:
-echo "Update Success"
+echo "Update $owner/$repo Success"
