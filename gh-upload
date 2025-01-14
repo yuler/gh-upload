@@ -90,7 +90,7 @@ fi
 files=()
 blobs=()
 for file in "$@"; do
-    sha=$(gh api /repos/$owner/$repo/git/blobs -f "encoding=base64" -f "content=$(base64 $file)" | jq -r '.sha')
+    sha=$(gh api /repos/$owner/$repo/git/blobs -f "encoding=base64" -f "content=$(base64 -i $file)" | jq -r '.sha')
     blobs+=($sha)
     files+=($file)
 done
