@@ -10,7 +10,7 @@ repo=static
 dry_run=false
 message="Updated at: \`$(date +%Y-%m-%d\ %H:%M:%S)\`"
 owner=$(gh config get -h github.com user)
-branch=$(gh api repos/$owner/$repo --jq .default_branch)
+branch=""
 
 usage() {
     cat <<-EOF
@@ -27,6 +27,8 @@ Options:
     -v                   output version
     -d                   dry-run mode, only output the command
     -m                   commit message. Default is \`Updated at: <datetime>\`
+    -b                   branch
+    -V                   verbose output
 
 Examples:
     # Upload README.md file to 'static' repo
@@ -47,7 +49,7 @@ version() {
 }
 
 # Parse options
-while getopts ":hvdm" opt; do
+while getopts "hvdm:b:V" opt; do
     case ${opt} in
     h)
         usage
@@ -60,6 +62,12 @@ while getopts ":hvdm" opt; do
         ;;
     m)
         message=$OPTARG
+        ;;
+    b)
+        branch=$OPTARG
+        ;;
+    V)
+        set -x
         ;;
     \?)
         usage
@@ -100,6 +108,9 @@ for file in "$@"; do
     files+=($file)
 done
 
+if [[ ! $branch ]]; then
+    branch=$(gh api repos/$owner/$repo --jq .default_branch)
+fi
 # Parent sha
 parent_sha=$(gh api /repos/$owner/$repo/branches/$branch | jq -r '.commit.sha')
 # Create tree
