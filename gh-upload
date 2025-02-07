@@ -3,7 +3,7 @@ set -eo pipefail
 IFS=$'\n\t'
 
 CLI=$(basename "${BASH_SOURCE[0]}")
-VERSION=v0.2.0
+VERSION=v0.2.1
 
 # Set default values for options
 repo=static
