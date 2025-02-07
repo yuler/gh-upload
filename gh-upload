@@ -7,9 +7,9 @@ VERSION=v0.2.0
 
 # Set default values for options
 repo=static
+owner=$(gh config get -h github.com user)
 dry_run=false
 message="Updated at: \`$(date +%Y-%m-%d\ %H:%M:%S)\`"
-owner=$(gh config get -h github.com user)
 branch=""
 
 usage() {
@@ -25,10 +25,10 @@ Arguments:
 Options:
     -h                   output usage
     -v                   output version
-    -d                   dry-run mode, only output the command
+    -d                   dry-run mode, only output the command, # unimplemented
     -m                   commit message. Default is \`Updated at: <datetime>\`
-    -b                   branch
-    -V                   verbose output
+    -b                   branch name. Default is the default branch of the repo
+    -x                   verbose output
 
 Examples:
     # Upload README.md file to 'static' repo
@@ -49,7 +49,7 @@ version() {
 }
 
 # Parse options
-while getopts "hvdm:b:V" opt; do
+while getopts "hvdxb:m:" opt; do
     case ${opt} in
     h)
         usage
@@ -58,6 +58,7 @@ while getopts "hvdm:b:V" opt; do
         version
         ;;
     d)
+        # TODO:
         dry_run=true
         ;;
     m)
@@ -66,7 +67,7 @@ while getopts "hvdm:b:V" opt; do
     b)
         branch=$OPTARG
         ;;
-    V)
+    x)
         set -x
         ;;
     \?)
@@ -98,15 +99,17 @@ fi
 files=()
 blobs=()
 for file in "$@"; do
-content=$(base64 -i $file)
-sha=$(gh api /repos/$owner/$repo/git/blobs -f "encoding=base64" -f "content=$content" | jq -r '.sha')
+    content=$(base64 -i $file)
+    sha=$(gh api /repos/$owner/$repo/git/blobs -f "encoding=base64" -f "content=$content" | jq -r '.sha')
     blobs+=($sha)
     files+=($file)
 done
 
+# Branch
 if [[ ! $branch ]]; then
     branch=$(gh api repos/$owner/$repo --jq .default_branch)
 fi
+
 # Parent sha
 parent_sha=$(gh api /repos/$owner/$repo/branches/$branch | jq -r '.commit.sha')
 # Create tree
