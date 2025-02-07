@@ -3,7 +3,7 @@ set -eo pipefail
 IFS=$'\n\t'
 
 CLI=$(basename "${BASH_SOURCE[0]}")
-VERSION=v0.2.1
+VERSION=v0.3.0
 
 # Set default values for options
 repo=static
@@ -19,7 +19,6 @@ Usage: $CLI [repo] <...paths> or $CLI <url>
 > Upload folders or files to GitHub repo
 
 Arguments:
-    [repo]               GitHub repo name, default is \`static\`. Only can missing in single file upload
     <...paths>           folders or files path
 
 Options:
@@ -27,18 +26,20 @@ Options:
     -v                   output version
     -d                   dry-run mode, only output the command, # unimplemented
     -m                   commit message. Default is \`Updated at: <datetime>\`
+    -r                   repo name. Default is \`static\`
     -b                   branch name. Default is the default branch of the repo
     -x                   verbose output
 
 Examples:
     # Upload README.md file to 'static' repo
     gh upload README.md
-
-    # Upload multiple files to <repo_name>
-    gh upload repo_name fixtures/avatar.png README.md
-
-    # Upload multiple files to <yuler/tmp>
-    gh upload yuler/tmp fixtures/avatar.png REAMDE.md
+    # With commit message 
+    gh upload -m "Update for readme" README.md
+    # With specify repo
+    gh upload -r "tmp" README.md
+    gh upload -r "yuler/tmp" README.md
+    # With specify branch
+    gh upload -r "yuler/tmp" -b "docs" README.md
 EOF
     exit
 }
@@ -49,7 +50,7 @@ version() {
 }
 
 # Parse options
-while getopts "hvdxb:m:" opt; do
+while getopts "hvdxr:b:m:" opt; do
     case ${opt} in
     h)
         usage
@@ -64,6 +65,15 @@ while getopts "hvdxb:m:" opt; do
     m)
         message=$OPTARG
         ;;
+    r)
+        tmp=$OPTARG
+        if [[ $tmp =~ '/' ]]; then
+            owner=${tmp%/*}
+            repo=${tmp#*/}
+        else
+            repo=$tmp
+        fi
+        ;;
     b)
         branch=$OPTARG
         ;;
@@ -76,19 +86,6 @@ while getopts "hvdxb:m:" opt; do
     esac
 done
 shift $((OPTIND - 1))
-
-# Note: $# > 1
-if [[ $# -gt 1 ]]; then
-    tmp=$1
-    # containts /
-    if [[ $tmp =~ '/' ]]; then
-        owner=${tmp%/*}
-        repo=${tmp#*/}
-    else
-        repo=$tmp
-    fi
-    shift
-fi
 
 # Main
 if [[ $# -eq 0 ]]; then
