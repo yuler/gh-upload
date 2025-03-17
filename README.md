@@ -20,3 +20,17 @@ gh extension install yuler/gh-upload
 gh alias set up "upload"
 gh up -h
 ```
+
+## Example
+
+```bash
+# Upload README.md file to 'static' repo
+gh upload README.md
+# With commit message 
+gh upload -m "Update for readme" README.md
+# With specify repo
+gh upload -r "tmp" README.md
+gh upload -r "yuler/tmp" README.md
+# With specify branch
+gh upload -r "yuler/tmp" -b "docs" README.md
+```
